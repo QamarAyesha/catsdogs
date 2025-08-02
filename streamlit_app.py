@@ -12,14 +12,14 @@ np.set_printoptions(suppress=True)
 
 @st.cache_resource
 def load_my_model():
-    if not os.path.exists("keras_Model.h5"):
-        st.error("❌ 'keras_Model.h5' not found.")
+    if not os.path.exists("keras_model.h5"):
+        st.error("❌ 'keras_model.h5' not found.")
         st.stop()
     if not os.path.exists("labels.txt"):
         st.error("❌ 'labels.txt' not found.")
         st.stop()
 
-    model = load_model("keras_Model.h5", compile=False)
+    model = load_model("keras_model.h5", compile=False)
     
     # Read raw labels like "0 Class 1" → ["Class 1", "Class 2"]
     raw_labels = [line.strip().split(" ", 1)[1] for line in open("labels.txt").readlines()]
