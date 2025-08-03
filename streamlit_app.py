@@ -54,12 +54,16 @@ def teachable_machine_component(class_labels):
                 
                 // Initialize Streamlit component value
                 if (typeof Streamlit !== "undefined" && Streamlit.setComponentValue) {{
-                    Streamlit.setComponentValue({{}});
+                    Streamlit.setComponentValue({{status: "ready"}});
                 }}
             }} catch (error) {{
                 console.error("Error loading model:", error);
                 const labelContainer = document.getElementById("label-container");
                 labelContainer.innerHTML = `<div style="color: red;">Error loading model: ${{error.message}}</div>`;
+                
+                if (typeof Streamlit !== "undefined" && Streamlit.setComponentValue) {{
+                    Streamlit.setComponentValue({{status: "error", message: error.message}});
+                }}
             }}
         }}
 
@@ -127,7 +131,8 @@ def teachable_machine_component(class_labels):
                     predicted_class: className,
                     confidence: confidence,
                     is_cat: isCat,
-                    is_dog: isDog
+                    is_dog: isDog,
+                    status: "prediction"
                 }};
 
                 // Display the results
@@ -166,6 +171,10 @@ def teachable_machine_component(class_labels):
                 console.error("Error making predictions:", error);
                 const labelContainer = document.getElementById("label-container");
                 labelContainer.innerHTML = `<div style="color: red;">Error making predictions: ${{error.message}}</div>`;
+                
+                if (typeof Streamlit !== "undefined" && Streamlit.setComponentValue) {{
+                    Streamlit.setComponentValue({{status: "error", message: error.message}});
+                }}
             }}
         }}
 
@@ -195,6 +204,11 @@ def teachable_machine_component(class_labels):
             border-radius: 10px;
             width: 80%;
             text-align: center;
+            cursor: pointer;
+        }}
+        #file-input:hover {{
+            border-color: #4CAF50;
+            background-color: #f0fff4;
         }}
     </style>
     """
@@ -241,38 +255,43 @@ def main():
         st.subheader("Upload an Image")
         
         # Add Teachable Machine Component
-        result_component = teachable_machine_component(class_labels)
+        component_result = teachable_machine_component(class_labels)
         
-        # Check if we have prediction results
-        if result_component:
-            # Extract the value from the component
-            result = result_component.get('value', {})
+        # Get the component value safely
+        component_value = {}
+        if component_result and isinstance(component_result, dict):
+            component_value = component_result.get('value', {})
+        
+        # Get the status from the component
+        status = component_value.get('status', 'loading')
+        
+        # Handle different states
+        if status == 'loading':
+            st.info("🔄 Loading AI model... Please wait")
+        elif status == 'ready':
+            st.info("ℹ️ Please upload an image to get a prediction")
+        elif status == 'error':
+            error_msg = component_value.get('message', 'Unknown error occurred')
+            st.error(f"❌ Error: {error_msg}")
+        elif status == 'prediction':
+            # Display prediction results
+            st.subheader("Prediction Results")
             
-            # Only display if we have prediction results
-            if result:
-                st.subheader("Prediction Results")
-                
-                if result.get('is_cat'):
-                    st.success(f"### 🐱 Cat detected with {result['confidence']*100:.2f}% confidence!")
-                elif result.get('is_dog'):
-                    st.success(f"### 🐶 Dog detected with {result['confidence']*100:.2f}% confidence!")
-                
-                # Show confidence as a progress bar
-                confidence = result.get('confidence', 0)
-                st.progress(confidence)
-                st.caption(f"Confidence level: {confidence*100:.2f}%")
-                
-                # Show fun facts
-                if result.get('is_cat'):
-                    st.info("**Fun Fact:** Cats have 230 bones, while humans only have 206!")
-                elif result.get('is_dog'):
-                    st.info("**Fun Fact:** Dogs' sense of smell is 10,000 to 100,000 times more acute than humans!")
-            else:
-                # Initial state before any prediction
-                st.info("ℹ️ Please upload an image to get a prediction")
-        else:
-            # Component not initialized yet
-            st.info("ℹ️ Loading AI model... Please wait")
+            if component_value.get('is_cat'):
+                st.success(f"### 🐱 Cat detected with {component_value['confidence']*100:.2f}% confidence!")
+            elif component_value.get('is_dog'):
+                st.success(f"### 🐶 Dog detected with {component_value['confidence']*100:.2f}% confidence!")
+            
+            # Show confidence as a progress bar
+            confidence = component_value.get('confidence', 0)
+            st.progress(confidence)
+            st.caption(f"Confidence level: {confidence*100:.2f}%")
+            
+            # Show fun facts
+            if component_value.get('is_cat'):
+                st.info("**Fun Fact:** Cats have 230 bones, while humans only have 206!")
+            elif component_value.get('is_dog'):
+                st.info("**Fun Fact:** Dogs' sense of smell is 10,000 to 100,000 times more acute than humans!")
         
         # Sample images section
         st.subheader("Try Sample Images")
