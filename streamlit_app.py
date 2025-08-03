@@ -36,7 +36,6 @@ def teachable_machine_component(class_labels):
         const classLabels = {class_labels_json};
 
         let model;
-        let lastResult = null;
 
         // Load the model
         async function init() {{
@@ -51,19 +50,10 @@ def teachable_machine_component(class_labels):
                 // Set up file input listener
                 const fileInput = document.getElementById("file-input");
                 fileInput.addEventListener("change", handleFileUpload, false);
-                
-                // Initialize Streamlit component value
-                if (typeof Streamlit !== "undefined" && Streamlit.setComponentValue) {{
-                    Streamlit.setComponentValue({{status: "ready"}});
-                }}
             }} catch (error) {{
                 console.error("Error loading model:", error);
                 const labelContainer = document.getElementById("label-container");
                 labelContainer.innerHTML = `<div style="color: red;">Error loading model: ${{error.message}}</div>`;
-                
-                if (typeof Streamlit !== "undefined" && Streamlit.setComponentValue) {{
-                    Streamlit.setComponentValue({{status: "error", message: error.message}});
-                }}
             }}
         }}
 
@@ -126,42 +116,27 @@ def teachable_machine_component(class_labels):
                 const isCat = predictedClass === 0;
                 const isDog = predictedClass === 1;
 
-                // Store the result
-                lastResult = {{
-                    predicted_class: className,
-                    confidence: confidence,
-                    is_cat: isCat,
-                    is_dog: isDog,
-                    status: "prediction"
-                }};
-
                 // Display the results
                 const labelContainer = document.getElementById("label-container");
                 labelContainer.innerHTML = `
-                    <div style="margin-bottom: 10px; font-size: 20px;">
-                        <span style="font-weight: bold; color: var(--text-color);">Prediction:</span>
-                        <span style="color: ${{isCat ? "#2196F3" : "#FF9800"}}; font-weight: bold; font-size: 24px;">
-                            ${{className}} ${{isCat ? "🐱" : "🐶"}}
-                        </span>
+                    <div style="margin-bottom: 10px;">
+                        <span style="font-weight: bold; color: var(--text-color);">Predicted Class:</span>
+                        <span style="color: ${{isCat ? "#2196F3" : "#FF9800"}}; font-weight: bold;">${{className}}</span>
                     </div>
-                    <div style="margin-bottom: 10px; font-size: 18px;">
+                    <div style="margin-bottom: 10px;">
                         <span style="font-weight: bold; color: var(--text-color);">Confidence:</span>
-                        <span style="color: ${{isCat ? "#2196F3" : "#FF9800"}}; font-weight: bold;">
-                            ${{(confidence * 100).toFixed(2)}}%
-                        </span>
-                    </div>
-                    <div style="margin-top: 20px; display: flex; justify-content: center;">
-                        <div style="background-color: ${{isCat ? "#2196F3" : "#FF9800"}}; 
-                            color: white; padding: 10px 20px; border-radius: 25px; 
-                            font-weight: bold; font-size: 20px;">
-                            ${{isCat ? "Feline Friend Detected!" : "Doggo Detected!"}}
-                        </div>
+                        <span style="color: ${{isCat ? "#2196F3" : "#FF9800"}}; font-weight: bold;">${{(confidence * 100).toFixed(2)}}%</span>
                     </div>
                 `;
 
                 // Send results back to Streamlit
                 if (typeof Streamlit !== "undefined" && Streamlit.setComponentValue) {{
-                    Streamlit.setComponentValue(lastResult);
+                    Streamlit.setComponentValue({{
+                        predicted_class: className,
+                        confidence: confidence,
+                        is_cat: isCat,
+                        is_dog: isDog
+                    }});
                 }} else {{
                     console.error("Streamlit API not available.");
                 }}
@@ -171,10 +146,6 @@ def teachable_machine_component(class_labels):
                 console.error("Error making predictions:", error);
                 const labelContainer = document.getElementById("label-container");
                 labelContainer.innerHTML = `<div style="color: red;">Error making predictions: ${{error.message}}</div>`;
-                
-                if (typeof Streamlit !== "undefined" && Streamlit.setComponentValue) {{
-                    Streamlit.setComponentValue({{status: "error", message: error.message}});
-                }}
             }}
         }}
 
@@ -192,10 +163,6 @@ def teachable_machine_component(class_labels):
                 --background-color: #1e1e1e;
             }}
         }}
-        body {{
-            background-color: var(--background-color);
-            padding: 20px;
-        }}
         #file-input {{
             display: block;
             margin: 20px auto;
@@ -204,11 +171,6 @@ def teachable_machine_component(class_labels):
             border-radius: 10px;
             width: 80%;
             text-align: center;
-            cursor: pointer;
-        }}
-        #file-input:hover {{
-            border-color: #4CAF50;
-            background-color: #f0fff4;
         }}
     </style>
     """
@@ -255,42 +217,34 @@ def main():
         st.subheader("Upload an Image")
         
         # Add Teachable Machine Component
-        component_result = teachable_machine_component(class_labels)
+        result_component = teachable_machine_component(class_labels)
         
         # Get the component value safely
-        component_value = {}
-        if component_result and isinstance(component_result, dict):
-            component_value = component_result.get('value', {})
+        result = None
+        if hasattr(result_component, 'get'):
+            try:
+                result = result_component.get('value')
+            except:
+                pass
         
-        # Get the status from the component
-        status = component_value.get('status', 'loading')
-        
-        # Handle different states
-        if status == 'loading':
-            st.info("🔄 Loading AI model... Please wait")
-        elif status == 'ready':
-            st.info("ℹ️ Please upload an image to get a prediction")
-        elif status == 'error':
-            error_msg = component_value.get('message', 'Unknown error occurred')
-            st.error(f"❌ Error: {error_msg}")
-        elif status == 'prediction':
-            # Display prediction results
+        # Display predictions only if we have results
+        if result:
             st.subheader("Prediction Results")
             
-            if component_value.get('is_cat'):
-                st.success(f"### 🐱 Cat detected with {component_value['confidence']*100:.2f}% confidence!")
-            elif component_value.get('is_dog'):
-                st.success(f"### 🐶 Dog detected with {component_value['confidence']*100:.2f}% confidence!")
+            if result.get('is_cat'):
+                st.success(f"### 🐱 Cat detected with {result['confidence']*100:.2f}% confidence!")
+            elif result.get('is_dog'):
+                st.success(f"### 🐶 Dog detected with {result['confidence']*100:.2f}% confidence!")
             
             # Show confidence as a progress bar
-            confidence = component_value.get('confidence', 0)
+            confidence = result.get('confidence', 0)
             st.progress(confidence)
             st.caption(f"Confidence level: {confidence*100:.2f}%")
             
             # Show fun facts
-            if component_value.get('is_cat'):
+            if result.get('is_cat'):
                 st.info("**Fun Fact:** Cats have 230 bones, while humans only have 206!")
-            elif component_value.get('is_dog'):
+            elif result.get('is_dog'):
                 st.info("**Fun Fact:** Dogs' sense of smell is 10,000 to 100,000 times more acute than humans!")
         
         # Sample images section
