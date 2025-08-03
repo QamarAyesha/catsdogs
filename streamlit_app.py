@@ -1,82 +1,68 @@
 import streamlit as st
 import streamlit.components.v1 as components
-import json
 
-# Class labels from your model
-class_labels = {
-    0: "Cat",
-    1: "Dog"
-}
+# Set Streamlit page config
+st.set_page_config(page_title="Cat vs Dog Classifier", layout="centered")
+st.title("🐱🐶 Cat vs Dog Classifier")
+st.markdown("Upload an image of a **cat** or **dog**, and we'll predict the class using your Teachable Machine model.")
 
-def teachable_machine_component(class_labels):
-    class_labels_json = json.dumps(class_labels)
+# Teachable Machine model URL
+model_url = "https://storage.googleapis.com/tm-model/B7vA7NlaK/model.json"
+labels = ["Cat", "Dog"]
 
-    html_code = f"""
-    <div style="font-family: sans-serif;">Cat vs Dog Classifier</div>
-    <input type="file" id="file-input" accept="image/*" />
-    <div id="image-container"></div>
-    <div id="label-container" style="margin-top: 20px; font-size: 16px;"></div>
+# Inject HTML + JS into Streamlit
+html_code = f"""
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  </head>
+  <body>
+    <input type="file" accept="image/*" onchange="loadImage(event)" style="margin-bottom: 20px;" />
+    <br>
+    <img id="preview" width="224" style="display:none;"/>
+    <p id="result" style="font-size:18px;"></p>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
-    <script type="text/javascript">
-        const modelURL = "https://storage.googleapis.com/tm-model/B7vA7NlaK/model.json";
-        const classLabels = {class_labels_json};
-        let model;
+    <script>
+      let model, labels = {labels};
 
-        async function init() {{
-            try {{
-                model = await tf.loadGraphModel(modelURL);
-                document.getElementById("file-input").addEventListener("change", handleFileUpload, false);
-            }} catch (error) {{
-                document.getElementById("label-container").innerHTML = "<div style='color:red;'>Error loading model: " + error.message + "</div>";
-            }}
-        }}
+      async function loadModel() {{
+        model = await tf.loadGraphModel("{model_url}");
+        console.log("Model loaded");
+      }}
 
-        async function handleFileUpload(event) {{
-            const file = event.target.files[0];
-            if (!file) return;
+      async function predictImage(img) {{
+        const tensor = tf.browser.fromPixels(img)
+            .resizeNearestNeighbor([224, 224])
+            .toFloat()
+            .expandDims();
 
-            const img = document.createElement("img");
-            img.src = URL.createObjectURL(file);
-            img.width = 224;
-            img.height = 224;
+        const prediction = await model.predict(tensor).data();
+        const maxProb = Math.max(...prediction);
+        const predictedIndex = prediction.indexOf(maxProb);
+        const className = labels[predictedIndex];
 
-            const container = document.getElementById("image-container");
-            container.innerHTML = "";
-            container.appendChild(img);
+        document.getElementById("result").innerHTML = `
+          <b>Prediction:</b> {{className}} <br/>
+          <b>Confidence:</b> {{(maxProb * 100).toFixed(2)}}%
+        `;
+      }}
 
-            img.onload = async () => {{
-                const tensor = tf.browser.fromPixels(img)
-                    .resizeNearestNeighbor([224, 224])
-                    .toFloat()
-                    .div(tf.scalar(255))
-                    .expandDims();
+      function loadImage(event) {{
+        const file = event.target.files[0];
+        if (!file) return;
 
-                const prediction = await model.predict(tensor);
-                const probs = await prediction.data();
-                const maxIdx = probs.indexOf(Math.max(...probs));
-                const className = classLabels[maxIdx];
-                const confidence = (probs[maxIdx] * 100).toFixed(2);
+        const img = document.getElementById("preview");
+        img.src = URL.createObjectURL(file);
+        img.style.display = "block";
+        img.onload = () => predictImage(img);
+      }}
 
-                document.getElementById("label-container").innerHTML = `
-                    <div><strong>Prediction:</strong> ${className}</div>
-                    <div><strong>Confidence:</strong> ${confidence}%</div>
-                `;
-            }};
-        }}
-
-        init();
+      loadModel();
     </script>
-    """
-    components.html(html_code, height=500)
+  </body>
+</html>
+"""
 
-# Streamlit App Entry
-def main():
-    st.set_page_config(page_title="Cat vs Dog Classifier", layout="centered")
-    st.title("🐾 Cat vs Dog Classifier")
-    st.write("Upload an image and the model will predict if it's a **Cat** or **Dog**.")
-
-    teachable_machine_component(class_labels)
-
-if __name__ == "__main__":
-    main()
+# Render the custom HTML + JS component
+components.html(html_code, height=600)
