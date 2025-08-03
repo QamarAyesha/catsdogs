@@ -247,15 +247,7 @@ def main():
             elif result.get('is_dog'):
                 st.info("**Fun Fact:** Dogs' sense of smell is 10,000 to 100,000 times more acute than humans!")
         
-        # Sample images section
-        st.subheader("Try Sample Images")
-        col_a, col_b = st.columns(2)
-        with col_a:
-            st.image("https://github.com/streamlit/example-data-cat-dog/blob/main/cat.jpg?raw=true", 
-                     caption="Sample Cat", use_column_width=True)
-        with col_b:
-            st.image("https://github.com/streamlit/example-data-cat-dog/blob/main/dog.jpg?raw=true", 
-                     caption="Sample Dog", use_column_width=True)
+     
     
     # Footer
     st.markdown("---")
