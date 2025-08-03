@@ -1,261 +1,274 @@
 import streamlit as st
 import streamlit.components.v1 as components
-import base64
-from PIL import Image
-import io
-import requests
+import json
 
-# Set Streamlit page config
+# Set page configuration
 st.set_page_config(
-    page_title="Cat vs Dog Classifier", 
-    layout="centered", 
+    page_title="Cat vs Dog Classifier",
     page_icon="🐾",
+    layout="wide",
     initial_sidebar_state="expanded"
 )
-st.title("🐱🐶 Cat vs Dog Classifier")
-st.markdown("Upload an image of a **cat** or **dog**, and we'll predict the class using a deep learning model.")
 
-# Teachable Machine model configuration
-model_url = "https://storage.googleapis.com/tm-model/B7vA7NlaK/model.json"
-labels = ["Cat", "Dog"]
+# Define class labels for cats and dogs
+class_labels = {
+    0: "Cat",
+    1: "Dog"
+}
 
-# Sample images
-sample_cat = "https://github.com/streamlit/example-data-cat-dog/blob/main/cat.jpg?raw=true"
-sample_dog = "https://github.com/streamlit/example-data-cat-dog/blob/main/dog.jpg?raw=true"
-
-# Sidebar for options and information
-with st.sidebar:
-    st.header("Options")
-    use_sample = st.radio("Select sample image:", ("None", "Sample Cat", "Sample Dog"))
+# Teachable Machine TensorFlow.js Integration with File Upload
+def teachable_machine_component(class_labels):
+    # Convert class_labels to JSON string
+    class_labels_json = json.dumps(class_labels)
     
-    st.header("About")
-    st.markdown("""
-    This app uses a Teachable Machine model to classify images of cats and dogs:
-    - **Model**: MobileNetV2 trained on 25k images
-    - **Accuracy**: 98% on validation set
-    - **Input**: 224x224 pixel images
-    """)
-    st.markdown("[View model details](https://teachablemachine.withgoogle.com/models/B7vA7NlaK/)")
+    # Use a multi-line string for the HTML/JavaScript code
+    html_code = f"""
+    <div style="font-family: sans-serif; color: var(--text-color);">Teachable Machine Image Model</div>
+    <input type="file" id="file-input" accept="image/*" />
+    <div id="image-container"></div>
+    <div id="label-container" style="margin-top: 20px; font-size: 16px; color: var(--text-color);"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script type="text/javascript">
+        // Teachable Machine model URL
+        const modelURL = "https://storage.googleapis.com/tm-model/B7vA7NlaK/model.json";
 
-# Display sample images
-st.subheader("Try with sample images:")
-col1, col2 = st.columns(2)
-with col1:
-    st.image(sample_cat, caption="Sample Cat", use_column_width=True)
-with col2:
-    st.image(sample_dog, caption="Sample Dog", use_column_width=True)
+        // Class labels
+        const classLabels = {class_labels_json};
 
-# File uploader
-uploaded_file = st.file_uploader("Or upload your own image...", type=["jpg", "jpeg", "png"])
+        let model;
 
-# Handle sample image selection
-if use_sample == "Sample Cat":
-    uploaded_file = sample_cat
-elif use_sample == "Sample Dog":
-    uploaded_file = sample_dog
+        // Load the model
+        async function init() {{
+            try {{
+                console.log("Loading model...");
+                console.log("Model URL:", modelURL);
 
-# Display results container
-results_container = st.container()
-results_container.subheader("Prediction Results")
-results_container.info("Upload an image or select a sample to see predictions")
+                // Load the model using tf.loadLayersModel
+                model = await tf.loadLayersModel(modelURL);
+                console.log("Model loaded successfully!");
 
-# Custom HTML component for Teachable Machine model
-html_code = f"""
-<!DOCTYPE html>
-<html>
-  <head>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <style>
-      .upload-container {{
-        border: 2px dashed #ccc;
-        border-radius: 10px;
-        padding: 30px;
-        text-align: center;
-        margin-bottom: 20px;
-        background-color: #f9f9f9;
-        transition: all 0.3s;
-      }}
-      .upload-container:hover {{
-        border-color: #4CAF50;
-        background-color: #f0fff4;
-      }}
-      .result-box {{
-        padding: 20px;
-        border-radius: 10px;
-        margin-top: 20px;
-        font-size: 18px;
-        text-align: center;
-        min-height: 120px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-      }}
-      .cat-result {{
-        background-color: #e3f2fd;
-        border: 2px solid #64b5f6;
-      }}
-      .dog-result {{
-        background-color: #fff3e0;
-        border: 2px solid #ffb74d;
-      }}
-      .preview-image {{
-        max-width: 100%;
-        border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        margin: 20px auto;
-        display: none;
-      }}
-    </style>
-  </head>
-  <body>
-    <div class="upload-container">
-      <h3>Upload Image</h3>
-      <input type="file" id="file-upload" accept="image/*" onchange="loadImage(event)" 
-             style="display: none;" />
-      <label for="file-upload" style="cursor: pointer; padding: 10px 20px; 
-             background-color: #4CAF50; color: white; border-radius: 5px;">
-        Choose File
-      </label>
-      <p id="file-name" style="margin-top: 10px;"></p>
-    </div>
-    
-    <img id="preview" class="preview-image"/>
-    
-    <div id="result" class="result-box">
-      <!-- Results will appear here -->
-    </div>
-
-    <script>
-      let model, labels = {labels};
-      let hasPrediction = false;
-
-      async function loadModel() {{
-        try {{
-          model = await tf.loadGraphModel("{model_url}");
-          console.log("Model loaded successfully");
-        }} catch (error) {{
-          console.error("Error loading model:", error);
-          document.getElementById("result").innerHTML = `
-            <div style="color: #d32f2f; font-weight: bold;">
-              Error loading model. Please try again later.
-            </div>
-          `;
+                // Set up file input listener
+                const fileInput = document.getElementById("file-input");
+                fileInput.addEventListener("change", handleFileUpload, false);
+            }} catch (error) {{
+                console.error("Error loading model:", error);
+                const labelContainer = document.getElementById("label-container");
+                labelContainer.innerHTML = `<div style="color: red;">Error loading model: ${{error.message}}</div>`;
+            }}
         }}
-      }}
 
-      async function predictImage(img) {{
-        if (!model) {{
-          console.log("Model not loaded yet");
-          return;
+        // Handle file upload
+        async function handleFileUpload(event) {{
+            const file = event.target.files[0];
+            if (!file) return;
+
+            console.log("File uploaded:", file.name);
+
+            // Display the uploaded image
+            const imageContainer = document.getElementById("image-container");
+            imageContainer.innerHTML = "";
+            const img = document.createElement("img");
+            img.src = URL.createObjectURL(file);
+            img.width = 300;
+            img.height = 300;
+            img.style.borderRadius = "10px";
+            img.style.boxShadow = "0 4px 8px rgba(0,0,0,0.1)";
+            imageContainer.appendChild(img);
+
+            // Wait for the image to load before making predictions
+            img.onload = async () => {{
+                console.log("Image loaded, making predictions...");
+
+                // Preprocess the image
+                const tensor = tf.browser.fromPixels(img)
+                    .resizeNearestNeighbor([224, 224]) // Resize to 224x224
+                    .toFloat() // Convert to float
+                    .div(tf.scalar(255)) // Normalize to [0, 1]
+                    .expandDims(); // Add batch dimension
+
+                // Make predictions
+                await predict(tensor);
+            }};
         }}
-        
-        try {{
-          // Show loading indicator
-          document.getElementById("result").innerHTML = `
-            <div style="text-align: center;">
-              <div>Processing image...</div>
-              <div class="spinner" style="margin: 10px auto; width: 40px; height: 40px;
-                    border: 4px solid #f3f3f3; border-top: 4px solid #3498db; 
-                    border-radius: 50%; animation: spin 1s linear infinite;"></div>
-            </div>
-            <style>
-              @keyframes spin {{ 0% {{ transform: rotate(0deg); }} 100% {{ transform: rotate(360deg); }} }}
-            </style>
-          `;
-          
-          const tensor = tf.browser.fromPixels(img)
-            .resizeNearestNeighbor([224, 224])
-            .toFloat()
-            .expandDims();
-          
-          const prediction = await model.predict(tensor).data();
-          tensor.dispose();
-          
-          const maxProb = Math.max(...prediction);
-          const predictedIndex = prediction.indexOf(maxProb);
-          const className = labels[predictedIndex];
-          hasPrediction = true;
-          
-          // Determine result styling
-          const resultClass = className === "Cat" ? "cat-result" : "dog-result";
-          const emoji = className === "Cat" ? "🐱" : "🐶";
-          
-          document.getElementById("result").className = `result-box ${{resultClass}}`;
-          document.getElementById("result").innerHTML = `
-            <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">
-              ${{emoji}} Prediction: ${{className}} ${{emoji}}
-            </div>
-            <div style="font-size: 20px;">
-              Confidence: <b>${{(maxProb * 100).toFixed(2)}}%</b>
-            </div>
-          `;
-          
-        }} catch (error) {{
-          console.error("Prediction error:", error);
-          document.getElementById("result").innerHTML = `
-            <div style="color: #d32f2f; font-weight: bold;">
-              Error during prediction. Please try another image.
-            </div>
-          `;
+
+        // Make predictions on the uploaded image
+        async function predict(tensor) {{
+            try {{
+                console.log("Predicting...");
+                const prediction = await model.predict(tensor);
+                console.log("Raw predictions:", prediction);
+
+                // Log the probabilities for each class
+                const probabilities = await prediction.data();
+                console.log("Probabilities:", probabilities);
+
+                // Get the predicted class
+                const predictedClass = tf.argMax(prediction, 1).dataSync()[0];
+                const confidence = tf.max(prediction).dataSync()[0];
+
+                // Get the class label
+                const className = classLabels[predictedClass] || "Unknown Class";
+
+                // Log the results
+                console.log(`Predicted Class: ${{className}}, Confidence: ${{confidence}}`);
+
+                // Determine if cat or dog
+                const isCat = predictedClass === 0;
+                const isDog = predictedClass === 1;
+
+                // Display the results
+                const labelContainer = document.getElementById("label-container");
+                labelContainer.innerHTML = `
+                    <div style="margin-bottom: 10px; font-size: 20px;">
+                        <span style="font-weight: bold; color: var(--text-color);">Prediction:</span>
+                        <span style="color: ${{isCat ? "#2196F3" : "#FF9800"}}; font-weight: bold; font-size: 24px;">
+                            ${{className}} ${{isCat ? "🐱" : "🐶"}}
+                        </span>
+                    </div>
+                    <div style="margin-bottom: 10px; font-size: 18px;">
+                        <span style="font-weight: bold; color: var(--text-color);">Confidence:</span>
+                        <span style="color: ${{isCat ? "#2196F3" : "#FF9800"}}; font-weight: bold;">
+                            ${{(confidence * 100).toFixed(2)}}%
+                        </span>
+                    </div>
+                    <div style="margin-top: 20px; display: flex; justify-content: center;">
+                        <div style="background-color: ${{isCat ? "#2196F3" : "#FF9800"}}; 
+                            color: white; padding: 10px 20px; border-radius: 25px; 
+                            font-weight: bold; font-size: 20px;">
+                            ${{isCat ? "Feline Friend Detected!" : "Doggo Detected!"}}
+                        </div>
+                    </div>
+                `;
+
+                // Send results back to Streamlit
+                if (typeof Streamlit !== "undefined" && Streamlit.setComponentValue) {{
+                    Streamlit.setComponentValue({{
+                        predicted_class: className,
+                        confidence: confidence,
+                        is_cat: isCat,
+                        is_dog: isDog
+                    }});
+                }} else {{
+                    console.error("Streamlit API not available.");
+                }}
+
+                console.log("Predictions completed!");
+            }} catch (error) {{
+                console.error("Error making predictions:", error);
+                const labelContainer = document.getElementById("label-container");
+                labelContainer.innerHTML = `<div style="color: red;">Error making predictions: ${{error.message}}</div>`;
+            }}
         }}
-      }}
 
-      function loadImage(event) {{
-        const file = event.target.files[0];
-        if (!file) return;
-        
-        // Update file name display
-        document.getElementById("file-name").textContent = file.name;
-        
-        const img = document.getElementById("preview");
-        img.src = URL.createObjectURL(file);
-        img.style.display = "block";
-        
-        img.onload = () => {{
-          // Resize if too large
-          if (img.width > 500) {{
-            img.style.maxWidth = "100%";
-            img.style.height = "auto";
-          }}
-          predictImage(img);
-        }};
-      }}
-
-      // Initialize
-      loadModel();
+        // Initialize the model
+        init();
     </script>
-  </body>
-</html>
-"""
+    <style>
+        :root {{
+            --text-color: black;
+            --background-color: white;
+        }}
+        @media (prefers-color-scheme: dark) {{
+            :root {{
+                --text-color: white;
+                --background-color: #1e1e1e;
+            }}
+        }}
+        body {{
+            background-color: var(--background-color);
+            padding: 20px;
+        }}
+        #file-input {{
+            display: block;
+            margin: 20px auto;
+            padding: 10px;
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            width: 80%;
+            text-align: center;
+        }}
+    </style>
+    """
 
-# Display the image if uploaded
-if uploaded_file is not None:
-    if isinstance(uploaded_file, str):  # Sample image URL
-        results_container.image(uploaded_file, caption="Selected Image", use_column_width=True)
-    else:  # Uploaded file
-        results_container.image(uploaded_file, caption="Uploaded Image", use_column_width=True)
+    # Render the HTML/JavaScript code
+    return components.html(html_code, height=600)
 
-# Render the custom HTML + JS component
-st.markdown("---")
-st.subheader("Classify with AI Model")
-st.markdown("Upload an image using the button below to classify it as a cat or dog:")
+# Streamlit App
+def main():
+    st.title("🐱🐶 Cat vs Dog Classifier")
+    st.write("Upload an image to classify whether it contains a cat or a dog using our AI model.")
+    
+    # Columns layout
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        st.subheader("How It Works")
+        st.markdown("""
+        1. **Upload an image** using the file uploader
+        2. Our AI model will analyze the image
+        3. Results will show whether it's a cat or dog
+        4. Confidence percentage indicates prediction certainty
+        
+        The model was trained using Google's Teachable Machine platform with thousands of cat and dog images.
+        """)
+        
+        st.subheader("Tips for Best Results")
+        st.markdown("""
+        - Use clear, well-lit photos
+        - Center the animal in the frame
+        - Avoid images with multiple animals
+        - Works best with cats and dogs (not other animals)
+        """)
+        
+        st.markdown("""
+        <div style="background-color: #e3f2fd; padding: 15px; border-radius: 10px; margin-top: 20px;">
+            <h4>About the Model</h4>
+            <p>This model uses a MobileNetV2 architecture trained on thousands of cat and dog images to achieve high accuracy predictions.</p>
+            <p><a href="https://teachablemachine.withgoogle.com/models/B7vA7NlaK/" target="_blank">View model details</a></p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.subheader("Upload an Image")
+        
+        # Add a container for the component
+        with st.container():
+            # Add Teachable Machine Component
+            result = teachable_machine_component(class_labels)
+            
+            # Display predictions dynamically
+            if result:
+                st.subheader("Prediction Results")
+                
+                if result.get('is_cat'):
+                    st.success(f"### 🐱 Cat detected with {result['confidence']*100:.2f}% confidence!")
+                elif result.get('is_dog'):
+                    st.success(f"### 🐶 Dog detected with {result['confidence']*100:.2f}% confidence!")
+                
+                # Show confidence as a progress bar
+                confidence = result['confidence']
+                st.progress(confidence)
+                st.caption(f"Confidence level: {confidence*100:.2f}%")
+                
+                # Show fun facts
+                if result.get('is_cat'):
+                    st.info("**Fun Fact:** Cats have 230 bones, while humans only have 206!")
+                elif result.get('is_dog'):
+                    st.info("**Fun Fact:** Dogs' sense of smell is 10,000 to 100,000 times more acute than humans!")
+        
+        # Sample images section
+        st.subheader("Try Sample Images")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.image("https://github.com/streamlit/example-data-cat-dog/blob/main/cat.jpg?raw=true", 
+                     caption="Sample Cat", use_column_width=True)
+        with col_b:
+            st.image("https://github.com/streamlit/example-data-cat-dog/blob/main/dog.jpg?raw=true", 
+                     caption="Sample Dog", use_column_width=True)
+    
+    # Footer
+    st.markdown("---")
+    st.caption("© 2023 Cat vs Dog Classifier | Built with Streamlit and TensorFlow.js")
 
-components.html(html_code, height=700)
-
-# Add some information about how it works
-st.markdown("---")
-st.subheader("How It Works")
-st.markdown("""
-1. **Upload an image** using the button above
-2. The image is sent to a deep learning model hosted on Google's servers
-3. The model analyzes the image features using convolutional neural networks
-4. A prediction is made with confidence percentage
-5. Results are displayed instantly
-
-This model was trained using [Google's Teachable Machine](https://teachablemachine.withgoogle.com/) 
-with thousands of cat and dog images to achieve high accuracy.
-""")
-
-# Add footer
-st.markdown("---")
-st.caption("© 2023 Cat vs Dog Classifier | Built with Streamlit and TensorFlow.js")
+if __name__ == "__main__":
+    main()
