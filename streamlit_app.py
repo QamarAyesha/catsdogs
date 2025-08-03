@@ -54,7 +54,7 @@ def teachable_machine_component(class_labels):
                 
                 // Initialize Streamlit component value
                 if (typeof Streamlit !== "undefined" && Streamlit.setComponentValue) {{
-                    Streamlit.setComponentValue(null);
+                    Streamlit.setComponentValue({{}});
                 }}
             }} catch (error) {{
                 console.error("Error loading model:", error);
@@ -240,12 +240,15 @@ def main():
     with col2:
         st.subheader("Upload an Image")
         
-        # Add a container for the component
-        with st.container():
-            # Add Teachable Machine Component
-            result = teachable_machine_component(class_labels)
+        # Add Teachable Machine Component
+        result_component = teachable_machine_component(class_labels)
+        
+        # Check if we have prediction results
+        if result_component:
+            # Extract the value from the component
+            result = result_component.get('value', {})
             
-            # Display predictions only when we have a result
+            # Only display if we have prediction results
             if result:
                 st.subheader("Prediction Results")
                 
@@ -255,7 +258,7 @@ def main():
                     st.success(f"### 🐶 Dog detected with {result['confidence']*100:.2f}% confidence!")
                 
                 # Show confidence as a progress bar
-                confidence = result['confidence']
+                confidence = result.get('confidence', 0)
                 st.progress(confidence)
                 st.caption(f"Confidence level: {confidence*100:.2f}%")
                 
@@ -267,6 +270,9 @@ def main():
             else:
                 # Initial state before any prediction
                 st.info("ℹ️ Please upload an image to get a prediction")
+        else:
+            # Component not initialized yet
+            st.info("ℹ️ Loading AI model... Please wait")
         
         # Sample images section
         st.subheader("Try Sample Images")
