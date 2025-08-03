@@ -3,9 +3,7 @@ import streamlit.components.v1 as components
 import json
 
 # Class labels for your model (index must match Teachable Machine order)
-class_labels = {import streamlit as st
-import streamlit.components.v1 as components
-import json
+
 
 # Set correct class labels (must match model training order)
 class_labels = {
