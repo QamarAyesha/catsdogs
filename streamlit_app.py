@@ -50,4 +50,32 @@ html_code = f"""
         const className = labels[predictedIndex];
 
         document.getElementById("result").innerHTML = `
-            <b>Prediction:</b> ${classNa
+            <b>Prediction:</b> ${className}<br/>
+            <b>Confidence:</b> ${(maxProb * 100).toFixed(2)}%
+        `;
+    }}
+
+    document.getElementById("upload").addEventListener("change", (event) => {{
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(file);
+        img.onload = () => predictImage(img);
+        img.width = 224;
+        img.height = 224;
+
+        const preview = document.getElementById("preview");
+        preview.innerHTML = "";
+        preview.appendChild(img);
+    }});
+
+    loadModel();
+</script>
+"""
+
+# ✅ Streamlit Page Layout
+st.set_page_config(page_title="Cat vs Dog Classifier", layout="centered")
+st.title("🐱🐶 Cat vs Dog Classifier")
+st.markdown("Upload an image of a cat or dog to get a prediction from the model.")
+components.html(html_code, height=600)
