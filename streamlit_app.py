@@ -36,6 +36,7 @@ def teachable_machine_component(class_labels):
         const classLabels = {class_labels_json};
 
         let model;
+        let lastResult = null;
 
         // Load the model
         async function init() {{
@@ -50,6 +51,11 @@ def teachable_machine_component(class_labels):
                 // Set up file input listener
                 const fileInput = document.getElementById("file-input");
                 fileInput.addEventListener("change", handleFileUpload, false);
+                
+                // Initialize Streamlit component value
+                if (typeof Streamlit !== "undefined" && Streamlit.setComponentValue) {{
+                    Streamlit.setComponentValue(null);
+                }}
             }} catch (error) {{
                 console.error("Error loading model:", error);
                 const labelContainer = document.getElementById("label-container");
@@ -116,6 +122,14 @@ def teachable_machine_component(class_labels):
                 const isCat = predictedClass === 0;
                 const isDog = predictedClass === 1;
 
+                // Store the result
+                lastResult = {{
+                    predicted_class: className,
+                    confidence: confidence,
+                    is_cat: isCat,
+                    is_dog: isDog
+                }};
+
                 // Display the results
                 const labelContainer = document.getElementById("label-container");
                 labelContainer.innerHTML = `
@@ -142,12 +156,7 @@ def teachable_machine_component(class_labels):
 
                 // Send results back to Streamlit
                 if (typeof Streamlit !== "undefined" && Streamlit.setComponentValue) {{
-                    Streamlit.setComponentValue({{
-                        predicted_class: className,
-                        confidence: confidence,
-                        is_cat: isCat,
-                        is_dog: isDog
-                    }});
+                    Streamlit.setComponentValue(lastResult);
                 }} else {{
                     console.error("Streamlit API not available.");
                 }}
@@ -236,7 +245,7 @@ def main():
             # Add Teachable Machine Component
             result = teachable_machine_component(class_labels)
             
-            # Display predictions dynamically
+            # Display predictions only when we have a result
             if result:
                 st.subheader("Prediction Results")
                 
@@ -255,6 +264,9 @@ def main():
                     st.info("**Fun Fact:** Cats have 230 bones, while humans only have 206!")
                 elif result.get('is_dog'):
                     st.info("**Fun Fact:** Dogs' sense of smell is 10,000 to 100,000 times more acute than humans!")
+            else:
+                # Initial state before any prediction
+                st.info("ℹ️ Please upload an image to get a prediction")
         
         # Sample images section
         st.subheader("Try Sample Images")
