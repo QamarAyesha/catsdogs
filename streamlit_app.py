@@ -17,7 +17,8 @@ class_labels = {
 }
 
 # Teachable Machine TensorFlow.js Integration with File Upload
-def teachable_machine_component(class_labels):
+def teachable_machine_component(class_labels, key=None):
+    """Create a Teachable Machine image classifier component with proper value handling"""
     # Convert class_labels to JSON string
     class_labels_json = json.dumps(class_labels)
     
@@ -175,13 +176,16 @@ def teachable_machine_component(class_labels):
     </style>
     """
 
-    # Render the HTML/JavaScript code
-    return components.html(html_code, height=600)
+    # Create and return the component
+    return components.html(html_code, height=600, key=key)
 
 # Streamlit App
 def main():
     st.title("🐱🐶 Cat vs Dog Classifier")
     st.write("Upload an image to classify whether it contains a cat or a dog using our AI model.")
+    
+    # Create a unique key for the component
+    component_key = "teachable_machine_component"
     
     # Columns layout
     col1, col2 = st.columns([1, 2])
@@ -216,38 +220,34 @@ def main():
     with col2:
         st.subheader("Upload an Image")
         
-        # Add Teachable Machine Component
-        result_component = teachable_machine_component(class_labels)
+        # Add Teachable Machine Component with a unique key
+        teachable_machine_component(class_labels, key=component_key)
         
-        # Get the component value safely
-        result = None
-        if hasattr(result_component, 'get'):
-            try:
-                result = result_component.get('value')
-            except:
-                pass
-        
-        # Display predictions only if we have results
-        if result:
-            st.subheader("Prediction Results")
+        # Check if we have a result in session state
+        if component_key in st.session_state:
+            result = st.session_state[component_key]
             
-            if result.get('is_cat'):
-                st.success(f"### 🐱 Cat detected with {result['confidence']*100:.2f}% confidence!")
-            elif result.get('is_dog'):
-                st.success(f"### 🐶 Dog detected with {result['confidence']*100:.2f}% confidence!")
-            
-            # Show confidence as a progress bar
-            confidence = result.get('confidence', 0)
-            st.progress(confidence)
-            st.caption(f"Confidence level: {confidence*100:.2f}%")
-            
-            # Show fun facts
-            if result.get('is_cat'):
-                st.info("**Fun Fact:** Cats have 230 bones, while humans only have 206!")
-            elif result.get('is_dog'):
-                st.info("**Fun Fact:** Dogs' sense of smell is 10,000 to 100,000 times more acute than humans!")
+            # Display predictions only if we have results
+            if result:
+                st.subheader("Prediction Results")
+                
+                if result.get('is_cat'):
+                    st.success(f"### 🐱 Cat detected with {result['confidence']*100:.2f}% confidence!")
+                elif result.get('is_dog'):
+                    st.success(f"### 🐶 Dog detected with {result['confidence']*100:.2f}% confidence!")
+                
+                # Show confidence as a progress bar
+                confidence = result.get('confidence', 0)
+                st.progress(confidence)
+                st.caption(f"Confidence level: {confidence*100:.2f}%")
+                
+                # Show fun facts
+                if result.get('is_cat'):
+                    st.info("**Fun Fact:** Cats have 230 bones, while humans only have 206!")
+                elif result.get('is_dog'):
+                    st.info("**Fun Fact:** Dogs' sense of smell is 10,000 to 100,000 times more acute than humans!")
     
-    # Move these outside the columns to avoid conditional rendering issues
+    # Sample images section (always visible)
     st.subheader("Try Sample Images")
     col_a, col_b = st.columns(2)
     with col_a:
