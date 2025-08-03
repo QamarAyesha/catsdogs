@@ -1,81 +1,79 @@
 import streamlit as st
 import streamlit.components.v1 as components
-import json
 
-# ✅ Class labels must match model's class order (Teachable Machine)
+st.set_page_config(page_title="Cat vs Dog Classifier", layout="centered")
+
+st.title("🐱🐶 Cat vs Dog Classifier")
+st.write("Upload an image and let the Teachable Machine model tell you if it's a cat or dog!")
+
+# Define the model URL
+model_url = "https://storage.googleapis.com/tm-model/B7vA7NlaK/model.json"
+
+# Class labels (index 0 = Cat, index 1 = Dog)
 class_labels = {
     0: "Cat",
     1: "Dog"
 }
 
-# Convert to JSON string for use in JavaScript
-class_labels_json = json.dumps(class_labels)
-
-# ✅ Hosted model.json URL
-model_url = "https://storage.googleapis.com/tm-model/B7vA7NlaK/model.json"
-
-# HTML + JS for TensorFlow.js in-browser prediction
+# JavaScript + HTML interface
 html_code = f"""
-<div style="font-family: sans-serif;">
-    <h3>🐾 Teachable Machine: Cat vs Dog Classifier</h3>
-    <input type="file" id="upload" accept="image/*" />
-    <div id="preview" style="margin-top: 10px;"></div>
-    <div id="result" style="margin-top: 20px; font-size: 18px;"></div>
-</div>
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.9.0"></script>
+</head>
+<body>
+  <input type="file" id="imageUpload" accept="image/*"/><br/><br/>
+  <img id="preview" src="" width="224" style="display:none;"/><br/>
+  <div id="result" style="font-size: 20px; font-weight: bold;"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
-<script type="text/javascript">
+  <script type="text/javascript">
     const modelURL = "{model_url}";
-    const labels = {class_labels_json};
+    const labels = {list(class_labels.values())};
 
     let model;
 
     async function loadModel() {{
-        model = await tf.loadLayersModel(modelURL);
-        console.log("Model loaded.");
+      model = await tf.loadGraphModel(modelURL);
+      console.log("Model loaded");
     }}
-
-    async function predictImage(imageElement) {{
-        const tensor = tf.browser.fromPixels(imageElement)
-            .resizeNearestNeighbor([224, 224])
-            .toFloat()
-            .div(tf.scalar(255.0))
-            .expandDims();
-
-        const prediction = await model.predict(tensor);
-        const probs = await prediction.data();
-
-        const maxProb = Math.max(...probs);
-        const predictedIndex = probs.indexOf(maxProb);
-        const className = labels[predictedIndex];
-
-        document.getElementById("result").innerHTML = `
-            <b>Prediction:</b> ${className}<br/>
-            <b>Confidence:</b> ${(maxProb * 100).toFixed(2)}%
-        `;
-    }}
-
-    document.getElementById("upload").addEventListener("change", (event) => {{
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const img = document.createElement("img");
-        img.src = URL.createObjectURL(file);
-        img.onload = () => predictImage(img);
-        img.width = 224;
-        img.height = 224;
-
-        const preview = document.getElementById("preview");
-        preview.innerHTML = "";
-        preview.appendChild(img);
-    }});
 
     loadModel();
-</script>
+
+    document.getElementById("imageUpload").addEventListener("change", async function(event) {{
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async function(e) {{
+        const img = document.getElementById("preview");
+        img.src = e.target.result;
+        img.onload = async function() {{
+          img.style.display = "block";
+
+          const tensor = tf.browser.fromPixels(img)
+            .resizeNearestNeighbor([224, 224])
+            .toFloat()
+            .div(255.0)
+            .expandDims();
+
+          const predictions = await model.predict(tensor).data();
+          const maxProb = Math.max(...predictions);
+          const predictedIndex = predictions.indexOf(maxProb);
+          const className = labels[predictedIndex];
+
+          document.getElementById("result").innerHTML = `
+            <b>Prediction:</b> ${{className}}<br/>
+            <b>Confidence:</b> ${{(maxProb * 100).toFixed(2)}}%
+          `;
+        }};
+      }};
+      reader.readAsDataURL(file);
+    }});
+  </script>
+</body>
+</html>
 """
 
-# ✅ Streamlit Page Layout
-st.set_page_config(page_title="Cat vs Dog Classifier", layout="centered")
-st.title("🐱🐶 Cat vs Dog Classifier")
-st.markdown("Upload an image of a cat or dog to get a prediction from the model.")
-components.html(html_code, height=600)
+# Render the component in Streamlit
+components.html(html_code, height=400)
