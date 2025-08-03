@@ -4,18 +4,12 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="Cat vs Dog Classifier", layout="centered")
 
 st.title("🐱🐶 Cat vs Dog Classifier")
-st.write("Upload an image and let the Teachable Machine model tell you if it's a cat or dog!")
+st.markdown("Upload an image and see whether the AI predicts a **Cat** or **Dog**.")
 
-# Define the model URL
+# Teachable Machine model URL
 model_url = "https://storage.googleapis.com/tm-model/B7vA7NlaK/model.json"
 
-# Class labels (index 0 = Cat, index 1 = Dog)
-class_labels = {
-    0: "Cat",
-    1: "Dog"
-}
-
-# JavaScript + HTML interface
+# HTML + JavaScript code to load and predict using the model
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -24,13 +18,12 @@ html_code = f"""
 </head>
 <body>
   <input type="file" id="imageUpload" accept="image/*"/><br/><br/>
-  <img id="preview" src="" width="224" style="display:none;"/><br/>
-  <div id="result" style="font-size: 20px; font-weight: bold;"></div>
+  <img id="preview" width="224" style="display:none; border: 1px solid #ccc;"/><br/>
+  <div id="result" style="margin-top: 20px; font-size: 18px; font-weight: bold;"></div>
 
   <script type="text/javascript">
     const modelURL = "{model_url}";
-    const labels = {list(class_labels.values())};
-
+    const labels = ["Cat", "Dog"];
     let model;
 
     async function loadModel() {{
@@ -45,12 +38,12 @@ html_code = f"""
       if (!file) return;
 
       const reader = new FileReader();
-      reader.onload = async function(e) {{
+      reader.onload = function(e) {{
         const img = document.getElementById("preview");
         img.src = e.target.result;
-        img.onload = async function() {{
-          img.style.display = "block";
+        img.style.display = "block";
 
+        img.onload = async function() {{
           const tensor = tf.browser.fromPixels(img)
             .resizeNearestNeighbor([224, 224])
             .toFloat()
@@ -63,10 +56,10 @@ html_code = f"""
           const className = labels[predictedIndex];
 
           document.getElementById("result").innerHTML = `
-            <b>Prediction:</b> ${{className}}<br/>
+            <b>Prediction:</b> ${{className}} <br/>
             <b>Confidence:</b> ${{(maxProb * 100).toFixed(2)}}%
           `;
-        }};
+        }}
       }};
       reader.readAsDataURL(file);
     }});
@@ -75,5 +68,5 @@ html_code = f"""
 </html>
 """
 
-# Render the component in Streamlit
-components.html(html_code, height=400)
+# Render the HTML component inside Streamlit
+components.html(html_code, height=500)
